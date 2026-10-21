@@ -17,10 +17,13 @@ func DB() (*sql.DB, error) {
 	if os.Getenv("TEST_ENV") == "true" {
 		if dbInstance == nil {
 			var err error
-			dbInstance, err = sql.Open("sqlite", ":memory:")
+			// cache=shared + single connection: plain :memory: gives each
+			// database/sql pool conn its own empty DB.
+			dbInstance, err = sql.Open("sqlite", "file:vulncheck-test?mode=memory&cache=shared")
 			if err != nil {
 				return nil, fmt.Errorf("failed to open in-memory database: %w", err)
 			}
+			dbInstance.SetMaxOpenConns(1)
 		}
 		return dbInstance, nil
 	}

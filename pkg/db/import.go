@@ -43,6 +43,14 @@ func ImportIndex(filePath string, indexDir string, progressCallback func(int)) e
 	if _, err := db.Exec(dropTableSQL); err != nil {
 		return fmt.Errorf("failed to drop existing table: %w", err)
 	}
+	if schemaUsesPurlMap(schema) {
+		if _, err := db.Exec(fmt.Sprintf(`DROP TABLE IF EXISTS "%s"`, purlMapTable(tableName))); err != nil {
+			return fmt.Errorf("failed to drop purl map table: %w", err)
+		}
+		if _, err := db.Exec(fmt.Sprintf(`DROP INDEX IF EXISTS "idx_%s_purl"`, tableName)); err != nil {
+			return fmt.Errorf("failed to drop legacy purl index: %w", err)
+		}
+	}
 
 	// Create table with schema
 	cols := make([]string, len(schema.Columns))
@@ -135,6 +143,12 @@ func ImportIndex(filePath string, indexDir string, progressCallback func(int)) e
 			if _, err := db.Exec(indexSQL); err != nil {
 				return fmt.Errorf("failed to create index: %w", err)
 			}
+		}
+	}
+
+	if schemaUsesPurlMap(schema) {
+		if err := BuildPurlLookupTable(db, tableName); err != nil {
+			return fmt.Errorf("failed to build purl lookup for %s: %w", tableName, err)
 		}
 	}
 

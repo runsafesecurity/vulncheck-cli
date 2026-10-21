@@ -70,7 +70,9 @@ var Schemas = []Schema{
 		Columns: []Column{
 			{Name: "name", Type: "TEXT", Index: false, NotNull: true},
 			{Name: "version", Type: "TEXT", Index: false, NotNull: true},
-			{Name: "purl", Type: "TEXT", Index: true, NotNull: true, IsJSON: true},
+			// purl is a JSON array blob; substring LIKE cannot use a B-tree on it.
+			// Equality search uses the *_purl_map side table built at import.
+			{Name: "purl", Type: "TEXT", Index: false, NotNull: true, IsJSON: true},
 			{Name: "licenses", Type: "TEXT", Index: false, NotNull: false, IsJSON: true}, // Add licenses
 			{Name: "cves", Type: "TEXT", Index: false, NotNull: false, IsJSON: true},
 			{Name: "vulnerabilities", Type: "TEXT", Index: false, NotNull: false, IsJSON: true},
@@ -84,7 +86,8 @@ var Schemas = []Schema{
 		Columns: []Column{
 			{Name: "name", Type: "TEXT", Index: false, NotNull: true},
 			{Name: "version", Type: "TEXT", Index: false, NotNull: true},
-			{Name: "purl", Type: "TEXT", Index: true, NotNull: true, IsJSON: true},
+			// See purl PM: map table provides equality / package-key indexes.
+			{Name: "purl", Type: "TEXT", Index: false, NotNull: true, IsJSON: true},
 			{Name: "licenses", Type: "TEXT", Index: false, NotNull: false, IsJSON: true}, // Add licenses
 			{Name: "cves", Type: "TEXT", Index: false, NotNull: false, IsJSON: true},
 			{Name: "vulnerabilities", Type: "TEXT", Index: false, NotNull: false, IsJSON: true},

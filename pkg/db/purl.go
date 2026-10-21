@@ -50,7 +50,6 @@ func purlSearchExact(indexName string, instance packageurl.PackageURL) ([]PurlEn
 	}
 
 	tableName := strings.ReplaceAll(indexName, "-", "_")
-	query := fmt.Sprintf("SELECT name, version, purl, cves, vulnerabilities FROM `%s` WHERE purl LIKE ?", tableName)
 
 	searchPURL := packageurl.PackageURL{
 		Type:      instance.Type,
@@ -60,15 +59,28 @@ func purlSearchExact(indexName string, instance packageurl.PackageURL) ([]PurlEn
 		Subpath:   instance.Subpath,
 	}.String()
 
-	// Anchor on JSON string quotes so "1.0.1" doesn't bleed into rows storing
-	// "1.0.10". When the caller supplies a versionless PURL, match any version
-	// for that package by anchoring on "@" instead of a closing quote.
-	pattern := `%"` + searchPURL + `"%`
-	if instance.Version == "" {
-		pattern = `%"` + searchPURL + `@%"%`
+	hasMap, err := purlMapExists(db, tableName)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	rows, err := db.Query(query, pattern)
+	var rows *sql.Rows
+	if hasMap {
+		usePackage := instance.Version == ""
+		key := searchPURL
+		if usePackage {
+			key = packageKeyFromPurl(searchPURL)
+		}
+		rows, err = queryPurlRowsByMap(db, tableName, key, usePackage)
+	} else {
+		// Legacy DBs without a sync-time map: substring match on the JSON blob.
+		pattern := `%"` + searchPURL + `"%`
+		if instance.Version == "" {
+			pattern = `%"` + searchPURL + `@%"%`
+		}
+		query := fmt.Sprintf("SELECT name, version, purl, cves, vulnerabilities FROM `%s` WHERE purl LIKE ?", tableName)
+		rows, err = db.Query(query, pattern)
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -107,7 +119,6 @@ func purlSearchOS(indexName string, instance packageurl.PackageURL) ([]PurlEntry
 	}
 
 	tableName := strings.ReplaceAll(indexName, "-", "_")
-	query := fmt.Sprintf("SELECT name, version, purl, cves, vulnerabilities FROM `%s` WHERE purl LIKE ?", tableName)
 
 	// Match every advisory row for the package, regardless of version, e.g.
 	// "pkg:apk/alpine/busybox@%".
@@ -118,7 +129,18 @@ func purlSearchOS(indexName string, instance packageurl.PackageURL) ([]PurlEntry
 		Subpath:   instance.Subpath,
 	}.String()
 
-	rows, err := db.Query(query, "%"+searchPrefix+"@%")
+	hasMap, err := purlMapExists(db, tableName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var rows *sql.Rows
+	if hasMap {
+		rows, err = queryPurlRowsByMap(db, tableName, searchPrefix, true)
+	} else {
+		query := fmt.Sprintf("SELECT name, version, purl, cves, vulnerabilities FROM `%s` WHERE purl LIKE ?", tableName)
+		rows, err = db.Query(query, "%"+searchPrefix+"@%")
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to execute query: %w", err)
 	}
