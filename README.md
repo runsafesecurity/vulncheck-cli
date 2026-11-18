@@ -386,6 +386,7 @@ Generates an SBOM for `<path>`, extracts PURLs, then either calls the vulncheck 
 | `-o`, `--sbom-output-file` | Save the generated SBOM to a file. |
 | `-i`, `--sbom-input-file` | Load an existing SBOM instead of generating one. |
 | `-s`, `--sbom-only` | Generate the SBOM without running the vuln lookup. |
+| `--cyclonedx-spec-version` | CycloneDX JSON schema version for saved SBOMs (`1.2`–`1.7`). Defaults to `1.6`. |
 | `-c`, `--include-cpes` | Extract CPEs as well as PURLs (offline mode only, for now). |
 | `--offline` | Use locally-synced indices instead of the API. |
 | `--offline-meta` | Populate metadata (CVSS, KEV, description) from `vulncheck-nvd2` in offline mode. |
