@@ -35,7 +35,7 @@ func TestSaveSBOM(t *testing.T) {
 	sbomFile := filepath.Join(tempDir, "test_sbom.json")
 	mockSBOM := &sbom.SBOM{}
 
-	err = SaveSBOM(mockSBOM, sbomFile)
+	err = SaveSBOM(mockSBOM, sbomFile, DefaultCycloneDXVersion)
 	if err != nil {
 		t.Fatalf("SaveSBOM failed: %v", err)
 	}
@@ -43,6 +43,101 @@ func TestSaveSBOM(t *testing.T) {
 	_, err = os.Stat(sbomFile)
 	if os.IsNotExist(err) {
 		t.Errorf("SaveSBOM did not create the file")
+	}
+
+	assertSavedSpecVersion(t, sbomFile, DefaultCycloneDXVersion)
+}
+
+func TestSaveSBOM_ExplicitVersion(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "sbom_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Errorf("Failed to remove temp directory: %v", err)
+		}
+	}()
+
+	sbomFile := filepath.Join(tempDir, "test_sbom_1_5.json")
+	if err := SaveSBOM(&sbom.SBOM{}, sbomFile, "1.5"); err != nil {
+		t.Fatalf("SaveSBOM failed: %v", err)
+	}
+	assertSavedSpecVersion(t, sbomFile, "1.5")
+}
+
+func TestSaveSBOM_EmptyVersionDefaultsTo16(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "sbom_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Errorf("Failed to remove temp directory: %v", err)
+		}
+	}()
+
+	sbomFile := filepath.Join(tempDir, "test_sbom_default.json")
+	if err := SaveSBOM(&sbom.SBOM{}, sbomFile, ""); err != nil {
+		t.Fatalf("SaveSBOM failed: %v", err)
+	}
+	assertSavedSpecVersion(t, sbomFile, DefaultCycloneDXVersion)
+}
+
+func TestSaveSBOM_UnsupportedVersion(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "sbom_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Errorf("Failed to remove temp directory: %v", err)
+		}
+	}()
+
+	sbomFile := filepath.Join(tempDir, "should-not-exist.json")
+	err = SaveSBOM(&sbom.SBOM{}, sbomFile, "9.9")
+	if err == nil {
+		t.Fatal("expected unsupported version to fail")
+	}
+	if _, statErr := os.Stat(sbomFile); !os.IsNotExist(statErr) {
+		t.Fatalf("expected no output file for unsupported version, stat err=%v", statErr)
+	}
+}
+
+func TestResolveCycloneDXVersion(t *testing.T) {
+	got, err := ResolveCycloneDXVersion("")
+	if err != nil {
+		t.Fatalf("empty version: %v", err)
+	}
+	if got != DefaultCycloneDXVersion {
+		t.Fatalf("empty version: got %q want %q", got, DefaultCycloneDXVersion)
+	}
+
+	got, err = ResolveCycloneDXVersion("1.6")
+	if err != nil || got != "1.6" {
+		t.Fatalf("1.6: got %q err=%v", got, err)
+	}
+
+	if _, err := ResolveCycloneDXVersion("not-a-version"); err == nil {
+		t.Fatal("expected error for unsupported version")
+	}
+}
+
+func assertSavedSpecVersion(t *testing.T, sbomFile string, want string) {
+	t.Helper()
+	raw, err := os.ReadFile(sbomFile)
+	if err != nil {
+		t.Fatalf("read SBOM: %v", err)
+	}
+	var payload struct {
+		SpecVersion string `json:"specVersion"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("parse SBOM: %v", err)
+	}
+	if payload.SpecVersion != want {
+		t.Fatalf("specVersion: got %q want %q", payload.SpecVersion, want)
 	}
 }
 
@@ -60,7 +155,7 @@ func TestLoadSBOM(t *testing.T) {
 	sbomFile := filepath.Join(tempDir, "test_sbom.json")
 	mockSBOM := &sbom.SBOM{}
 
-	err = SaveSBOM(mockSBOM, sbomFile)
+	err = SaveSBOM(mockSBOM, sbomFile, DefaultCycloneDXVersion)
 	if err != nil {
 		t.Fatalf("SaveSBOM failed: %v", err)
 	}

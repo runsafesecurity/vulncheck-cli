@@ -28,11 +28,12 @@ type Copy struct {
 	FlagSaveResults      string
 	FlagOutputJson       string
 	FlagSpecifyFile      string
-	FlagSpecifySbomFile  string
-	FlagSpecifySbomInput string
-	FlagSpecifySbomOnly  string
-	FlagIncludeCpes      string
-	FlagEnrich           string
+	FlagSpecifySbomFile      string
+	FlagSpecifySbomInput     string
+	FlagSpecifySbomOnly      string
+	FlagCycloneDXSpecVersion string
+	FlagIncludeCpes          string
+	FlagEnrich               string
 	SavingResultsStart   string
 	SavingResultsEnd     string
 
@@ -225,11 +226,12 @@ var En = Copy{
 	FlagSaveResults:      "Save Results as a file",
 	FlagOutputJson:       "Output JSON Results",
 	FlagSpecifyFile:      "Specify the file to save the results to",
-	FlagSpecifySbomFile:  "Specify the file to save your SBOM scan to",
-	FlagSpecifySbomInput: "Specify an existing SBOM file to scan instead of creating one from a folder",
-	FlagSpecifySbomOnly:  "Do not run a scan and only create a SBOM file",
-	FlagIncludeCpes:      "Include and Scan CPEs",
-	FlagEnrich:           "Enrich the generated SBOM with additional metadata from local and online sources (e.g. proxy.golang.org, Maven Central, NPM, PyPI). Comma-separated scopes; supported values: all, golang, java, javascript, python. Prefix with '-' to exclude (e.g. all,-java). Off by default; enabling adds runtime cost and requires network access. Cannot be combined with --offline or --sbom-input-file.",
+	FlagSpecifySbomFile:      "Specify the file to save your SBOM scan to",
+	FlagSpecifySbomInput:     "Specify an existing SBOM file to scan instead of creating one from a folder",
+	FlagSpecifySbomOnly:      "Do not run a scan and only create a SBOM file",
+	FlagCycloneDXSpecVersion: "CycloneDX JSON schema version to write when saving an SBOM (supported: 1.2–1.7). Defaults to 1.6.",
+	FlagIncludeCpes:          "Include and Scan CPEs",
+	FlagEnrich:               "Enrich the generated SBOM with additional metadata from local and online sources (e.g. proxy.golang.org, Maven Central, NPM, PyPI). Comma-separated scopes; supported values: all, golang, java, javascript, python. Prefix with '-' to exclude (e.g. all,-java). Off by default; enabling adds runtime cost and requires network access. Cannot be combined with --offline or --sbom-input-file.",
 	SavingResultsStart:   "Saving Results to %s",
 	SavingResultsEnd:     "Results saved to %s",
 

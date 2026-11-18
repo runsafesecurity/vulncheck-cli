@@ -32,22 +32,24 @@ type scanEnvelope struct {
 }
 
 type Options struct {
-	File        bool
-	FileName    string
-	SbomFile    string
-	SbomInput   string
-	SbomOnly    bool
-	Cpes        bool
-	Offline     bool
-	OfflineMeta bool
-	DisableUI   bool
-	WarnOnIndex bool
-	Enrich      []string
+	File                 bool
+	FileName             string
+	SbomFile             string
+	SbomInput            string
+	SbomOnly             bool
+	CycloneDXSpecVersion string
+	Cpes                 bool
+	Offline              bool
+	OfflineMeta          bool
+	DisableUI            bool
+	WarnOnIndex          bool
+	Enrich               []string
 }
 
 func Command() *cobra.Command {
 	opts := &Options{
-		FileName: "output.json",
+		FileName:             "output.json",
+		CycloneDXSpecVersion: bill.DefaultCycloneDXVersion,
 	}
 
 	cmd := &cobra.Command{
@@ -82,6 +84,12 @@ func Command() *cobra.Command {
 			// scope is otherwise a silent no-op, which reads as success while
 			// producing an SBOM without the metadata the user opted in for.
 			if err := bill.ValidateEnrich(opts.Enrich); err != nil {
+				return ui.Error(err)
+			}
+
+			// Resolve early so an unsupported --cyclonedx-spec-version fails
+			// before cataloguing, not after a successful SBOM generation.
+			if _, err := bill.ResolveCycloneDXVersion(opts.CycloneDXSpecVersion); err != nil {
 				return ui.Error(err)
 			}
 
@@ -294,7 +302,7 @@ func Command() *cobra.Command {
 				scanTasks = append(scanTasks, taskin.Task{
 					Title: fmt.Sprintf("Saving SBOM to %s", opts.SbomFile),
 					Task: func(t *taskin.Task) error {
-						if err := bill.SaveSBOM(sbm, opts.SbomFile); err != nil {
+						if err := bill.SaveSBOM(sbm, opts.SbomFile, opts.CycloneDXSpecVersion); err != nil {
 							return err
 						}
 						t.Title = fmt.Sprintf("SBOM saved to %s", opts.SbomFile)
@@ -406,6 +414,7 @@ func Command() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.SbomFile, "sbom-output-file", "o", "", i18n.C.FlagSpecifySbomFile)
 	cmd.Flags().StringVarP(&opts.SbomInput, "sbom-input-file", "i", "", i18n.C.FlagSpecifySbomInput)
 	cmd.Flags().BoolVarP(&opts.SbomOnly, "sbom-only", "s", false, i18n.C.FlagSpecifySbomOnly)
+	cmd.Flags().StringVar(&opts.CycloneDXSpecVersion, "cyclonedx-spec-version", bill.DefaultCycloneDXVersion, i18n.C.FlagCycloneDXSpecVersion)
 	cmd.Flags().BoolVarP(&opts.Cpes, "include-cpes", "c", false, i18n.C.FlagIncludeCpes)
 	cmd.Flags().BoolVar(&opts.Offline, "offline", false, "Use offline mode to find CVEs - requires indices to be cached")
 	cmd.Flags().BoolVar(&opts.OfflineMeta, "offline-meta", false, "Use with offline mode to populate CVE metadata - requires the vulncheck-nvd2 index to be cached")

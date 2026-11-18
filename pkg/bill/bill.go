@@ -228,7 +228,20 @@ func enrichmentScope(directives []string, aliases ...string) bool {
 	return false
 }
 
-func SaveSBOM(sbm *sbom.SBOM, file string) error {
+// DefaultCycloneDXVersion is the CycloneDX JSON schema version written when
+// callers omit --cyclonedx-spec-version. Pinned to 1.6 so generated SBOMs
+// match RunSafe Platform / CI generators rather than Syft's moving default.
+const DefaultCycloneDXVersion = "1.6"
+
+// SaveSBOM writes sbm as CycloneDX JSON. cyclonedxVersion selects the schema
+// version (e.g. "1.6"); empty uses DefaultCycloneDXVersion. Unsupported
+// versions fail before the file is created.
+func SaveSBOM(sbm *sbom.SBOM, file string, cyclonedxVersion string) error {
+	version, err := ResolveCycloneDXVersion(cyclonedxVersion)
+	if err != nil {
+		return err
+	}
+
 	f, err := os.Create(file)
 	if err != nil {
 		return fmt.Errorf("unable to create file %s: %w", file, err)
@@ -238,7 +251,10 @@ func SaveSBOM(sbm *sbom.SBOM, file string) error {
 			_ = err
 		}
 	}()
-	encoder, err := cyclonedxjson.NewFormatEncoderWithConfig(cyclonedxjson.DefaultEncoderConfig())
+	encoder, err := cyclonedxjson.NewFormatEncoderWithConfig(cyclonedxjson.EncoderConfig{
+		Version: version,
+		Pretty:  false,
+	})
 	if err != nil {
 		return err
 	}
@@ -254,6 +270,25 @@ func SaveSBOM(sbm *sbom.SBOM, file string) error {
 	}
 
 	return nil
+}
+
+// ResolveCycloneDXVersion returns a Syft-supported CycloneDX JSON version.
+// Empty input resolves to DefaultCycloneDXVersion.
+func ResolveCycloneDXVersion(cyclonedxVersion string) (string, error) {
+	version := cyclonedxVersion
+	if version == "" {
+		version = DefaultCycloneDXVersion
+	}
+	for _, supported := range cyclonedxjson.SupportedVersions() {
+		if supported == version {
+			return version, nil
+		}
+	}
+	return "", fmt.Errorf(
+		"unsupported CycloneDX spec version %q (supported: %s)",
+		cyclonedxVersion,
+		strings.Join(cyclonedxjson.SupportedVersions(), ", "),
+	)
 }
 
 // maxSBOMBytes caps the in-memory read of a user-supplied SBOM file. 1 GiB
